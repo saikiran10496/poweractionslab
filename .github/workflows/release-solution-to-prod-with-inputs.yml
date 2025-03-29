@@ -118,7 +118,30 @@ jobs:
       with:
         name: managedSolutions
         path: ${{ inputs.solution_release_folder}}
+        
     - name: Import solution to prod env
+      uses: microsoft/powerplatform-actions/import-solution@v1
+      id: import-solution
+      with:
+        environment-url: ${{inputs.PRODUCTION_ENVIRONMENT_URL}}
+        app-id: ${{inputs.CLIENT_ID}}
+        client-secret: ${{ secrets.envSecret }}
+        tenant-id: ${{inputs.TENANT_ID}}
+        solution-file: ${{ inputs.solution_release_folder}}/${{ inputs.solution_name }}_managed.zip
+        force-overwrite: true
+        publish-changes: true
+
+    # Add a delay if the import failed
+    - name: Wait for ongoing imports to complete
+      if: steps.import-solution.outcome == 'failure'
+      run: |
+        echo "Import failed, waiting for 5 minutes before retrying..."
+        Start-Sleep -Seconds 300
+      shell: pwsh
+    
+    # Retry the import
+    - name: Retry solution import
+      if: steps.import-solution.outcome == 'failure'
       uses: microsoft/powerplatform-actions/import-solution@v1
       with:
         environment-url: ${{inputs.PRODUCTION_ENVIRONMENT_URL}}
